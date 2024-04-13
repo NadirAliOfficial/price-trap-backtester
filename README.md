@@ -99,4 +99,4 @@ Run one chart per pair. All settings are pre-configured in the preset file.
 | UseWeekendFilter | true | Close all positions before weekend |
 | SessionStartUTC | 7 | London open |
 | SessionEndUTC | 21 | NY close |
-<!-- updated: 2023-12-15-r01 -->
+<!-- updated: 2024-04-13-r01 -->
