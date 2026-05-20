@@ -22,4 +22,5 @@ def generate(trades, output="report.csv"):
 
     by_pair = df.groupby("pair")["rr"].sum().sort_values(ascending=False)
     print("\nPerformance by pair:")
-    print(by_pair.to_string())
+    for pair, rr in by_pair.items():
+        print(f"  {pair:<10} {rr:+.1f}")

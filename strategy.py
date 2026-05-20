@@ -1,10 +1,10 @@
 import pandas as pd
 from config import RANGE_MIN_PIPS, RANGE_MAX_PIPS, FIBO_ENTRY, TP1_RR, TP2_RR, MAX_ACTIVE_SETUPS
 
-LIMIT_EXPIRY_CANDLES = 8   # cancel limit order if not filled within 8 x M15 candles (2 hours)
-MIN_ENGULF_PIPS = 5        # engulfing candle body must be at least 5 pips
-MIN_RANGE_CANDLES = 5      # range must contain at least 5 candles
-RANGE_BODY_THRESHOLD = 0.7 # 70% of candles must have bodies inside the range
+LIMIT_EXPIRY_CANDLES = 16  # cancel limit order if not filled within 16 x M15 candles (4 hours)
+MIN_ENGULF_PIPS = 3        # engulfing candle body must be at least 3 pips
+MIN_RANGE_CANDLES = 4      # range must contain at least 4 candles
+RANGE_BODY_THRESHOLD = 0.6 # 60% of candles must have bodies inside the range
 
 
 def pip_size(symbol):
@@ -194,15 +194,10 @@ def run_backtest(pair, h1, m15):
     pip = pip_size(pair)
     trades = []
     active = 0
-    last_trade_bar = -20
 
     for i in range(12, len(h1)):
         if active >= MAX_ACTIVE_SETUPS:
             active = max(0, active - 1)
-            continue
-
-        # skip if too close to last trade (avoid clustering)
-        if i - last_trade_bar < 5:
             continue
 
         candle = h1.iloc[i]
@@ -228,6 +223,5 @@ def run_backtest(pair, h1, m15):
         result["direction"] = direction
         trades.append(result)
         active += 1
-        last_trade_bar = i
 
     return trades
