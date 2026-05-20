@@ -25,7 +25,7 @@ input bool   UseTrendFilter  = true;
 
 // ── Risk ──────────────────────────────────────────────────────────
 input group "Risk"
-input double RiskPercent     = 1.0;  // total % per setup; split into 2 equal legs
+input double RiskPercent     = 1.0;  // % risk per leg (2 legs open = 2x this per setup)
 input int    MaxActiveSetups = 5;
 input long   MagicNumber     = 20240101;
 
@@ -316,7 +316,7 @@ string D1Trend()
 
 double LotSize(double riskPrice)
 {
-    double money = AccountInfoDouble(ACCOUNT_BALANCE) * RiskPercent / 100.0 / 2.0;
+    double money = AccountInfoDouble(ACCOUNT_BALANCE) * RiskPercent / 100.0;
     double tv    = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
     double ts    = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
     if(ts == 0 || tv == 0) return 0;
