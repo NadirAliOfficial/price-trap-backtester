@@ -1,14 +1,12 @@
 import MetaTrader5 as mt5
 import pandas as pd
 from datetime import datetime
-from config import MT5_LOGIN, MT5_PASSWORD, MT5_SERVER, BACKTEST_START, BACKTEST_END
+from config import BACKTEST_START, BACKTEST_END
 
 
 def connect():
     if not mt5.initialize():
-        raise RuntimeError("MT5 initialize failed")
-    if MT5_LOGIN and MT5_PASSWORD and MT5_SERVER:
-        mt5.login(MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER)
+        raise RuntimeError("MT5 initialize failed — make sure MT5 is open and logged in on this machine")
 
 
 def disconnect():
