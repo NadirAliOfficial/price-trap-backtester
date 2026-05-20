@@ -18,6 +18,7 @@ TP2_RR = 4.0
 MT5_LOGIN = 0        # your broker account number
 MT5_PASSWORD = ""    # your broker password
 MT5_SERVER = ""      # your broker server name e.g. "ICMarkets-Demo"
+MT5_PATH = ""        # path to terminal64.exe e.g. "C:\\Program Files\\MetaTrader 5\\terminal64.exe"
 
 BACKTEST_START = "2023-01-01"
 BACKTEST_END = "2024-12-31"
