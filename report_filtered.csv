@@ -1,0 +1,10 @@
+t1,t2,rr,pair,time,direction
+win,be,2.0,AUDCAD,2023-01-02 07:15:00,down
+loss,loss,-2.0,AUDCAD,2024-02-21 19:30:00,down
+win,win,6.0,CADJPY,2024-07-17 08:45:00,down
+loss,loss,-2.0,EURUSD,2023-01-02 09:00:00,down
+win,be,2.0,EURUSD,2024-04-01 18:15:00,down
+win,be,2.0,EURUSD,2024-10-03 17:30:00,down
+loss,loss,-2.0,EURUSD,2024-11-01 11:15:00,down
+win,win,6.0,USDCAD,2023-01-02 09:30:00,up
+loss,loss,-2.0,USDCAD,2023-07-04 10:45:00,down

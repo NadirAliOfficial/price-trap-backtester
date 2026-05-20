@@ -9,13 +9,19 @@ def load_from_csv(pairs):
     for pair in pairs:
         h1_path  = os.path.join(DATA_DIR, f"{pair}_H1.csv")
         m15_path = os.path.join(DATA_DIR, f"{pair}_M15.csv")
+        d1_path  = os.path.join(DATA_DIR, f"{pair}_D1.csv")
         if not os.path.exists(h1_path) or not os.path.exists(m15_path):
             print(f"Skipped {pair} - CSV not found")
             continue
         h1  = pd.read_csv(h1_path,  index_col=0, parse_dates=True)
         m15 = pd.read_csv(m15_path, index_col=0, parse_dates=True)
-        data[pair] = {"H1": h1, "M15": m15}
-        print(f"Loaded {pair}  H1:{len(h1)} bars  M15:{len(m15)} bars")
+        if os.path.exists(d1_path):
+            d1 = pd.read_csv(d1_path, index_col=0, parse_dates=True)
+        else:
+            d1 = h1.resample("D").agg({"open": "first", "high": "max",
+                                        "low": "min", "close": "last"}).dropna()
+        data[pair] = {"H1": h1, "M15": m15, "D1": d1}
+        print(f"Loaded {pair}  H1:{len(h1)}  M15:{len(m15)}  D1:{len(d1)}")
     return data
 
 
@@ -31,7 +37,7 @@ def load_from_mt5(pairs):
             raise RuntimeError(f"MT5 login failed: {mt5.last_error()}")
 
     def get_ohlc(symbol, timeframe):
-        tf_map = {"H1": mt5.TIMEFRAME_H1, "M15": mt5.TIMEFRAME_M15}
+        tf_map = {"H1": mt5.TIMEFRAME_H1, "M15": mt5.TIMEFRAME_M15, "D1": mt5.TIMEFRAME_D1}
         start = datetime.strptime(BACKTEST_START, "%Y-%m-%d")
         end   = datetime.strptime(BACKTEST_END,   "%Y-%m-%d")
         rates = mt5.copy_rates_range(symbol, tf_map[timeframe], start, end)
@@ -46,12 +52,12 @@ def load_from_mt5(pairs):
     for pair in pairs:
         h1  = get_ohlc(pair, "H1")
         m15 = get_ohlc(pair, "M15")
+        d1  = get_ohlc(pair, "D1")
         if h1 is not None and m15 is not None:
-            data[pair] = {"H1": h1, "M15": m15}
+            data[pair] = {"H1": h1, "M15": m15, "D1": d1}
             print(f"Loaded {pair}")
         else:
             print(f"Skipped {pair} - no data")
-
     mt5.shutdown()
     return data
 

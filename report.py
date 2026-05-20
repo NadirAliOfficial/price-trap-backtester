@@ -1,17 +1,18 @@
 import pandas as pd
 
 
-def generate(trades, output="report.csv"):
+def generate(trades, output="report.csv", label=""):
     df = pd.DataFrame(trades)
     df.to_csv(output, index=False)
 
-    total = len(df)
-    wins = len(df[df["t1"] == "win"])
-    losses = len(df[df["t1"] == "loss"])
+    total    = len(df)
+    wins     = len(df[df["t1"] == "win"])
+    losses   = len(df[df["t1"] == "loss"])
     win_rate = (wins / total * 100) if total > 0 else 0
     total_rr = df["rr"].sum()
 
-    print("\n===== BACKTEST REPORT =====")
+    title = f"===== BACKTEST REPORT — {label} =====" if label else "===== BACKTEST REPORT ====="
+    print(f"\n{title}")
     print(f"Total trades   : {total}")
     print(f"Wins           : {wins}")
     print(f"Losses         : {losses}")
