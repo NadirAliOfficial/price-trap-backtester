@@ -1,8 +1,8 @@
 PAIRS = [
-    "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD",
-    "NZDUSD", "USDCAD", "EURGBP", "EURJPY", "GBPJPY",
-    "AUDJPY", "EURAUD", "EURCHF", "GBPCHF", "CADJPY",
-    "NZDJPY", "EURCAD", "GBPAUD", "GBPCAD", "AUDCAD"
+    "AUDCAD", "AUDJPY", "AUDNZD", "AUDUSD", "CADJPY",
+    "EURUSD", "EURAUD", "EURCAD", "EURNZD", "EURGBP",
+    "EURJPY", "GBPAUD", "GBPCAD", "GBPJPY", "GBPNZD",
+    "GBPUSD", "NZDCAD", "NZDJPY", "NZDUSD", "USDJPY", "USDCAD"
 ]
 
 RANGE_MIN_PIPS = 20
@@ -14,6 +14,10 @@ FIBO_SL = 1.0
 
 TP1_RR = 2.0
 TP2_RR = 4.0
+
+MT5_LOGIN = 0        # your broker account number
+MT5_PASSWORD = ""    # your broker password
+MT5_SERVER = ""      # your broker server name e.g. "ICMarkets-Demo"
 
 BACKTEST_START = "2023-01-01"
 BACKTEST_END = "2024-12-31"
