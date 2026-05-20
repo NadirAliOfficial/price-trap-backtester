@@ -1,54 +1,65 @@
-import yfinance as yf
+import os
 import pandas as pd
-from datetime import datetime, timedelta
-from config import BACKTEST_START, BACKTEST_END
+
+DATA_DIR = "data"
 
 
-def yf_symbol(pair):
-    return f"{pair}=X"
+def load_from_csv(pairs):
+    data = {}
+    for pair in pairs:
+        h1_path  = os.path.join(DATA_DIR, f"{pair}_H1.csv")
+        m15_path = os.path.join(DATA_DIR, f"{pair}_M15.csv")
+        if not os.path.exists(h1_path) or not os.path.exists(m15_path):
+            print(f"Skipped {pair} - CSV not found")
+            continue
+        h1  = pd.read_csv(h1_path,  index_col=0, parse_dates=True)
+        m15 = pd.read_csv(m15_path, index_col=0, parse_dates=True)
+        data[pair] = {"H1": h1, "M15": m15}
+        print(f"Loaded {pair}  H1:{len(h1)} bars  M15:{len(m15)} bars")
+    return data
 
 
-def fetch(symbol, interval, start=None, end=None, period=None):
-    kwargs = dict(interval=interval, auto_adjust=True, progress=False)
-    if period:
-        kwargs["period"] = period
-    else:
-        kwargs["start"] = start
-        kwargs["end"] = end
-    df = yf.download(yf_symbol(symbol), **kwargs)
-    if df.empty:
-        return None
+def load_from_mt5(pairs):
+    import MetaTrader5 as mt5
+    from datetime import datetime
+    from config import BACKTEST_START, BACKTEST_END, MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
 
-    # flatten multi-level columns if present
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [col[0].lower() for col in df.columns]
-    else:
-        df.columns = [c.lower() for c in df.columns]
+    if not mt5.initialize():
+        raise RuntimeError("MT5 initialize failed — make sure MT5 is open")
+    if MT5_LOGIN and MT5_PASSWORD and MT5_SERVER:
+        if not mt5.login(MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER):
+            raise RuntimeError(f"MT5 login failed: {mt5.last_error()}")
 
-    df = df[["open", "high", "low", "close"]].dropna()
-    df.index = pd.to_datetime(df.index, utc=True).tz_localize(None)
-    return df
-
-
-def load_all_pairs(pairs):
-    now = datetime.utcnow()
-
-    h1_start = (now - timedelta(days=700)).strftime("%Y-%m-%d")
-    h1_end   = now.strftime("%Y-%m-%d")
+    def get_ohlc(symbol, timeframe):
+        tf_map = {"H1": mt5.TIMEFRAME_H1, "M15": mt5.TIMEFRAME_M15}
+        start = datetime.strptime(BACKTEST_START, "%Y-%m-%d")
+        end   = datetime.strptime(BACKTEST_END,   "%Y-%m-%d")
+        rates = mt5.copy_rates_range(symbol, tf_map[timeframe], start, end)
+        if rates is None or len(rates) == 0:
+            return None
+        df = pd.DataFrame(rates)
+        df["time"] = pd.to_datetime(df["time"], unit="s")
+        df.set_index("time", inplace=True)
+        return df[["open", "high", "low", "close"]]
 
     data = {}
     for pair in pairs:
-        h1  = fetch(pair, "1h",  start=h1_start, end=h1_end)
-        m15 = fetch(pair, "15m", period="60d")
-
-        if h1 is None or m15 is None or h1.empty or m15.empty:
+        h1  = get_ohlc(pair, "H1")
+        m15 = get_ohlc(pair, "M15")
+        if h1 is not None and m15 is not None:
+            data[pair] = {"H1": h1, "M15": m15}
+            print(f"Loaded {pair}")
+        else:
             print(f"Skipped {pair} - no data")
-            continue
 
-        # restrict H1 to the period where M15 is also available
-        h1 = h1[h1.index >= m15.index[0]]
-
-        data[pair] = {"H1": h1, "M15": m15}
-        print(f"Loaded {pair}  H1:{len(h1)} bars  M15:{len(m15)} bars")
-
+    mt5.shutdown()
     return data
+
+
+def load_all_pairs(pairs):
+    if os.path.isdir(DATA_DIR) and any(f.endswith("_H1.csv") for f in os.listdir(DATA_DIR)):
+        print("Loading from CSV files...")
+        return load_from_csv(pairs)
+    else:
+        print("Loading data from MT5...")
+        return load_from_mt5(pairs)
