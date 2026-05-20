@@ -1,0 +1,8 @@
+t1,t2,rr,pair,time,direction
+loss,loss,-2.0,AUDUSD,2026-04-03 21:00:00,down
+loss,loss,-2.0,AUDUSD,2026-04-10 08:45:00,down
+loss,loss,-2.0,AUDUSD,2026-05-01 15:00:00,up
+loss,loss,-2.0,EURUSD,2026-04-29 19:15:00,down
+loss,loss,-2.0,NZDUSD,2026-04-21 19:30:00,down
+loss,loss,-2.0,NZDUSD,2026-05-01 15:00:00,up
+win,be,2.0,NZDUSD,2026-05-19 10:30:00,down
