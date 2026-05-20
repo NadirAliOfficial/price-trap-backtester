@@ -9,8 +9,12 @@ RANGE_MIN_PIPS = 20
 RANGE_MAX_PIPS = 30
 MAX_ACTIVE_SETUPS = 5
 
-FIBO_ENTRY = 0.786
-FIBO_SL = 1.0
+FIBO_ENTRY = 0.618   # entry at 61.8% from top of engulfing body (golden zone first line)
+FIBO_SL_EXT = 0.786  # SL at -78.6% extension beyond the body
+
+# London 07:00-16:00 UTC, NY 13:00-21:00 UTC — combined active window
+SESSION_START_UTC = 7
+SESSION_END_UTC = 21
 
 TP1_RR = 2.0
 TP2_RR = 4.0
