@@ -1,0 +1,28 @@
+; Price Trap EA — Optimised Preset
+; Source: backtest 2023-2024 across AUDCAD AUDUSD CADJPY EURUSD USDCAD AUDNZD
+; Load via: MT5 → EA inputs → Load → select this file
+
+[Parameters]
+RangeMinPips=20
+RangeMaxPips=30
+RangeLookback=12
+MinRangeCandles=4
+RangeBodyPct=0.6
+FiboEntry=0.618
+FiboSLExt=0.786
+TP1_RR=2.0
+TP2_RR=4.0
+MinEngulfPips=3
+EngulfBars=12
+LimitExpiry=16
+UseTrendFilter=true
+RiskPercent=1.0
+MaxActiveSetups=5
+MagicNumber=20240101
+SessionStartUTC=7
+SessionEndUTC=21
+UseNewsFilter=true
+NewsMinsBefore=30
+NewsMinsAfter=30
+UseWeekendFilter=true
+FridayCloseHour=21
