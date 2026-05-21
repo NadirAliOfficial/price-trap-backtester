@@ -1,9 +1,8 @@
-from data import load_all_pairs
-from strategy import run_backtest
-from report import generate
-from config import PAIRS
+from backtester.data import load_all_pairs
+from backtester.strategy import run_backtest
+from backtester.report import generate
+from backtester.config import PAIRS
 
-print("Loading data from MT5...")
 data = load_all_pairs(PAIRS)
 
 print("\nRunning backtest WITHOUT D1 trend filter...")

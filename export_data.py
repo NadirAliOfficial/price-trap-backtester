@@ -2,7 +2,7 @@ import MetaTrader5 as mt5
 import pandas as pd
 from datetime import datetime
 import os
-from config import PAIRS, BACKTEST_START, BACKTEST_END, MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
+from backtester.config import PAIRS, BACKTEST_START, BACKTEST_END, MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
 
 DATA_DIR = "data"
 

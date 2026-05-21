@@ -28,7 +28,7 @@ def load_from_csv(pairs):
 def load_from_mt5(pairs):
     import MetaTrader5 as mt5
     from datetime import datetime
-    from config import BACKTEST_START, BACKTEST_END, MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
+    from backtester.config import BACKTEST_START, BACKTEST_END, MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
 
     if not mt5.initialize():
         raise RuntimeError("MT5 initialize failed — make sure MT5 is open")
