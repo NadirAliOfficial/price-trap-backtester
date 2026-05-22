@@ -1,8 +1,7 @@
 ; Price Trap EA — Optimised Preset
-; Source: backtest 2023-2024 across AUDCAD AUDUSD CADJPY EURUSD USDCAD AUDNZD
-; Load via: MT5 → EA inputs → Load → select this file
+; Source: backtest 2023-2024, pairs EURUSD AUDCAD AUDUSD CADJPY USDCAD AUDNZD
+; Load in MT5: Inputs tab → Load → select this file
 
-[Parameters]
 RangeMinPips=20
 RangeMaxPips=30
 RangeLookback=12
