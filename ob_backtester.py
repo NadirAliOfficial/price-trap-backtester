@@ -1,19 +1,31 @@
 import pandas as pd
 import numpy as np
 
-OB_DATA_DIR  = "ob_data"
-PAIRS        = ["XAUUSD", "EURUSD", "US30"]
+OB_DATA_DIR = "ob_data"
 
-DOJI_BODY_PCT    = 0.20   # body/range < this = doji (stricter)
-MIN_IMPULSE_BODY = 0.70   # body/range > this = impulsive (stricter)
-MIN_IMPULSE_PCT  = 0.0003 # impulse body must be >= 0.03% of price
-MIN_OB_SIZE_PCT  = 0.0001 # OB zone must be >= 0.01% of price
-EMA_PERIOD       = 200
-BB_PERIOD        = 20
-BB_STD           = 2.0
-TP1_RR           = 1.0
-TP2_RR           = 2.0
-OB_EXPIRY_M1     = 30
+DEFAULTS = dict(
+    DOJI_BODY_PCT    = 0.20,
+    MIN_IMPULSE_BODY = 0.70,
+    MIN_IMPULSE_PCT  = 0.0003,
+    MIN_OB_SIZE_PCT  = 0.0001,
+    OB_EXPIRY_M1     = 30,
+    BB_STD           = 2.0,
+)
+
+PAIR_CFG = {
+    "XAUUSD": {},
+    "EURUSD": {},
+    "US30":   {"MIN_IMPULSE_PCT": 0.0008, "MIN_OB_SIZE_PCT": 0.0003, "DOJI_BODY_PCT": 0.25},
+}
+
+EMA_PERIOD = 200
+BB_PERIOD  = 20
+TP1_RR     = 1.0
+TP2_RR     = 2.0
+
+
+def cfg(pair, key):
+    return PAIR_CFG.get(pair, {}).get(key, DEFAULTS[key])
 
 
 def load_pair(pair):
@@ -27,12 +39,12 @@ def add_indicators(df):
     df["ema200"]   = df["close"].ewm(span=EMA_PERIOD, adjust=False).mean()
     df["bb_mid"]   = df["close"].rolling(BB_PERIOD).mean()
     df["bb_std"]   = df["close"].rolling(BB_PERIOD).std()
-    df["bb_upper"] = df["bb_mid"] + BB_STD * df["bb_std"]
-    df["bb_lower"] = df["bb_mid"] - BB_STD * df["bb_std"]
+    df["bb_upper"] = df["bb_mid"] + 2.0 * df["bb_std"]
+    df["bb_lower"] = df["bb_mid"] - 2.0 * df["bb_std"]
     return df
 
 
-def detect_obs(m3):
+def detect_obs(m3, pair):
     obs = []
     for i in range(2, len(m3) - 1):
         doji = m3.iloc[i]
@@ -42,15 +54,16 @@ def detect_obs(m3):
         d_range = doji["high"] - doji["low"]
         if d_range == 0:
             continue
-        d_body = abs(doji["close"] - doji["open"])
-        if d_body / d_range > DOJI_BODY_PCT:
+        if abs(doji["close"] - doji["open"]) / d_range > cfg(pair, "DOJI_BODY_PCT"):
             continue
 
         n_range = nxt["high"] - nxt["low"]
         if n_range == 0:
             continue
         n_body = abs(nxt["close"] - nxt["open"])
-        if n_body / n_range < MIN_IMPULSE_BODY:
+        if n_body / n_range < cfg(pair, "MIN_IMPULSE_BODY"):
+            continue
+        if n_body < nxt["close"] * cfg(pair, "MIN_IMPULSE_PCT"):
             continue
 
         direction = -1 if nxt["close"] < nxt["open"] else 1
@@ -63,25 +76,17 @@ def detect_obs(m3):
         if direction ==  1 and doji["close"] < ema:
             continue
 
-        # imbalance: impulse close breaks beyond previous candle's extreme
         if direction == -1 and nxt["close"] >= prev["low"]:
             continue
         if direction ==  1 and nxt["close"] <= prev["high"]:
             continue
 
-        # minimum impulse size
-        n_body_size = abs(nxt["close"] - nxt["open"])
-        if n_body_size < nxt["close"] * MIN_IMPULSE_PCT:
-            continue
-
         ob_high = max(doji["open"], doji["close"])
         ob_low  = min(doji["open"], doji["close"])
         if ob_high == ob_low:
-            ob_high = doji["high"]
-            ob_low  = doji["low"]
+            ob_high, ob_low = doji["high"], doji["low"]
 
-        # minimum OB zone size
-        if (ob_high - ob_low) < ob_high * MIN_OB_SIZE_PCT:
+        if (ob_high - ob_low) < ob_high * cfg(pair, "MIN_OB_SIZE_PCT"):
             continue
 
         obs.append({
@@ -97,13 +102,9 @@ def detect_obs(m3):
 def simulate_trade(m1, ob, fill_idx):
     direction = ob["direction"]
     entry = ob["ob_high"] if direction == -1 else ob["ob_low"]
-    sl    = ob["sl_ref"] + (ob["ob_high"] - ob["ob_low"]) * 0.1
-    sl    = ob["sl_ref"] if direction == -1 else ob["sl_ref"]
-    # give SL a buffer beyond doji extreme
-    sl = (ob["sl_ref"] + (ob["ob_high"] - ob["ob_low"]) * 0.5) if direction == -1 \
-         else (ob["sl_ref"] - (ob["ob_high"] - ob["ob_low"]) * 0.5)
-
-    risk = abs(entry - sl)
+    buf   = (ob["ob_high"] - ob["ob_low"]) * 0.5
+    sl    = ob["sl_ref"] + buf if direction == -1 else ob["sl_ref"] - buf
+    risk  = abs(entry - sl)
     if risk == 0:
         return None
 
@@ -136,29 +137,27 @@ def backtest_pair(pair):
     m1, m3 = load_pair(pair)
     m3 = add_indicators(m3)
     m1 = add_indicators(m1)
-    obs = detect_obs(m3)
+    obs = detect_obs(m3, pair)
     trades = []
 
+    expiry = cfg(pair, "OB_EXPIRY_M1")
     for ob in obs:
-        candidates = m1[m1.index > ob["time"]].iloc[:OB_EXPIRY_M1]
+        candidates = m1[m1.index > ob["time"]].iloc[:expiry]
         for ts, candle in candidates.iterrows():
-            h, l = candle["high"], candle["low"]
-            bb_u = candle["bb_upper"]
-            bb_l = candle["bb_lower"]
+            h, l   = candle["high"], candle["low"]
+            bb_u   = candle["bb_upper"]
+            bb_l   = candle["bb_lower"]
             if pd.isna(bb_u) or pd.isna(bb_l):
                 continue
-
             if ob["direction"] == -1:
                 if h < ob["ob_high"]: continue
-                # BB upper must be inside OB zone (price at upper BB = at OB resistance)
                 if not (ob["ob_low"] <= bb_u <= ob["ob_high"] * 1.005): continue
             else:
                 if l > ob["ob_low"]: continue
-                # BB lower must be inside OB zone (price at lower BB = at OB support)
                 if not (ob["ob_low"] * 0.995 <= bb_l <= ob["ob_high"]): continue
 
             fill_idx = m1.index.get_loc(ts)
-            result = simulate_trade(m1, ob, fill_idx)
+            result   = simulate_trade(m1, ob, fill_idx)
             if result:
                 result.update({"pair": pair, "time": ts, "dir": ob["direction"]})
                 trades.append(result)
@@ -167,9 +166,9 @@ def backtest_pair(pair):
     return trades
 
 
-def report(all_trades):
+def report(all_trades, pairs):
     if not all_trades:
-        print("No trades found — parameters may be too strict.")
+        print("No trades found.")
         return
     df = pd.DataFrame(all_trades)
     total = len(df)
@@ -177,27 +176,32 @@ def report(all_trades):
     loss  = len(df[df["t1"] == "loss"])
     wr    = wins / total * 100
     print(f"\n{'='*50}")
-    print(f"OB Strategy Backtest  ({df['time'].min().date()} to {df['time'].max().date()})")
+    print(f"OB Strategy  ({df['time'].min().date()} to {df['time'].max().date()})")
     print(f"{'='*50}")
-    print(f"Total trades : {total}")
-    print(f"Win rate     : {wr:.1f}%  ({wins}W / {loss}L)")
-    print(f"Avg RR       : {df['rr'].mean():.2f}R")
-    print(f"Total RR     : {df['rr'].sum():.2f}R")
+    print(f"Total : {total}  |  Win rate : {wr:.1f}%  ({wins}W / {loss}L)")
+    print(f"Avg RR: {df['rr'].mean():.2f}R  |  Total RR: {df['rr'].sum():.2f}R")
     print(f"\nBy pair:")
-    for p in df["pair"].unique():
+    for p in pairs:
         sub = df[df["pair"] == p]
-        w   = len(sub[sub["t1"] == "win"])
-        print(f"  {p}: {len(sub)} trades  {w}/{len(sub)} wins  "
+        if sub.empty:
+            print(f"  {p}: no trades")
+            continue
+        w = len(sub[sub["t1"] == "win"])
+        print(f"  {p}: {len(sub)} trades  {w}/{len(sub)} wins "
               f"({w/len(sub)*100:.0f}%)  {sub['rr'].sum():.1f}R")
     df.to_csv("ob_report.csv", index=False)
     print(f"\nSaved to ob_report.csv")
 
 
 if __name__ == "__main__":
+    pairs = ["XAUUSD", "EURUSD", "US30"]
     all_trades = []
-    for pair in PAIRS:
+    for pair in pairs:
+        if not __import__("os").path.exists(f"{OB_DATA_DIR}/{pair}_M1.csv"):
+            print(f"Skipping {pair} — no data file")
+            continue
         print(f"Scanning {pair}...")
         t = backtest_pair(pair)
         print(f"  {len(t)} trades")
         all_trades.extend(t)
-    report(all_trades)
+    report(all_trades, pairs)
