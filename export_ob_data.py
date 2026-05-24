@@ -44,6 +44,15 @@ def get_d1(symbol):
     return df[["open", "high", "low", "close"]]
 
 
+def list_symbols():
+    connect()
+    print("Available symbols matching XAU, GOLD, US30, DJ, DOW, EUR, NAS, SPX:")
+    for s in mt5.symbols_get():
+        if any(x in s.name.upper() for x in ["XAU","GOLD","US30","DJ","DOW","NAS","SPX"]):
+            print(" ", s.name)
+    mt5.shutdown()
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     connect()
@@ -77,4 +86,5 @@ def main():
 
 
 if __name__ == "__main__":
+    list_symbols()
     main()
