@@ -47,10 +47,9 @@ def main():
 
     available = {s.name for s in mt5.symbols_get()}
 
-    print("Symbols found matching search:")
+    print("ALL available symbols:")
     for s in mt5.symbols_get():
-        if any(x in s.name.upper() for x in ["XAU","GOLD","US30","DJ","DOW","NAS","SPX"]):
-            print(" ", s.name)
+        print(" ", s.name)
 
     print("\nExporting data...")
     for pair in PAIRS:
