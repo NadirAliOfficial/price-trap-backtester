@@ -14,8 +14,8 @@ def connect():
 
 def get_m1(symbol):
     mt5.symbol_select(symbol, True)
-    time.sleep(1)
-    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 150000)
+    time.sleep(2)
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 50000)
     if rates is None or len(rates) == 0:
         print(f"  {symbol} M1 error: {mt5.last_error()}")
         return None
