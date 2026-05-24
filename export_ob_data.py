@@ -14,16 +14,10 @@ def connect():
         raise RuntimeError("MT5 initialize failed — make sure MT5 is open")
 
 
-def preload(symbol):
-    mt5.symbol_select(symbol, True)
-    mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 200000)
-
-
 def get_m1(symbol):
-    preload(symbol)
-    start = datetime.strptime(START, "%Y-%m-%d")
-    end   = datetime.strptime(END,   "%Y-%m-%d")
-    rates = mt5.copy_rates_range(symbol, mt5.TIMEFRAME_M1, start, end)
+    mt5.symbol_select(symbol, True)
+    # pull most recent 150k bars (≈ 3-4 months of M1)
+    rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 150000)
     if rates is None or len(rates) == 0:
         return None
     df = pd.DataFrame(rates)
