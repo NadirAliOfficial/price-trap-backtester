@@ -48,8 +48,11 @@ def main():
     available = {s.name for s in mt5.symbols_get()}
 
     print("ALL available symbols:")
-    for s in mt5.symbols_get():
-        print(" ", s.name)
+    with open("symbols.txt", "w") as f:
+        for s in mt5.symbols_get():
+            print(" ", s.name)
+            f.write(s.name + "\n")
+    print("Saved to symbols.txt")
 
     print("\nExporting data...")
     for pair in PAIRS:
