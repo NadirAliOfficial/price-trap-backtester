@@ -1,0 +1,30 @@
+; OrderBlockEA default preset — XAUUSD / EURUSD / US30
+; Copy to MT5 \Profiles\Tester\ and load in Strategy Tester inputs
+
+DojiBodyPct=0.20
+MinImpulseBody=0.70
+MinImpulsePct=0.0003
+MinOBSizePct=0.0001
+OBExpiryBars=30
+EmaPeriod=200
+BbPeriod=20
+BbStdDev=2.0
+BbTouchTol=0.005
+RiskPercent=1.0
+TP1_RR=1.0
+TP2_RR=2.0
+AtrPeriod=14
+AtrMultiplier=1.5
+SLBufferPct=0.50
+MaxDailyDrawdown=3.0
+MaxActiveOrders=5
+UseSessionFilter=true
+SessionStartUTC=7
+SessionEndUTC=21
+UseWeekendFilter=true
+FridayCloseHour=21
+UseNewsFilter=false
+NewsMinsBefore=30
+NewsMinsAfter=30
+MagicNumber=20260101
+ShowPanel=true
