@@ -60,7 +60,7 @@ def page_header(fig, title, subtitle=""):
             va="center", transform=ax.transAxes)
     ax.text(0.03, 0.15, subtitle, color="#aaaacc", fontsize=9,
             va="center", transform=ax.transAxes)
-    ax.text(0.97, 0.5, "CONFIDENTIAL — NADIR ALI", color="#555577", fontsize=7,
+    ax.text(0.97, 0.5, "CONFIDENTIAL", color="#555577", fontsize=7,
             ha="right", va="center", transform=ax.transAxes)
 
 
@@ -114,7 +114,7 @@ def page_cover(pdf):
 
     fig.text(0.5, 0.20, "Prepared for:  Martyna Klaudia Predecka",
              ha="center", color="#aaaacc", fontsize=10)
-    fig.text(0.5, 0.16, "Prepared by:   Nadir Ali  |  TEAM NAK",
+    fig.text(0.5, 0.16, "Prepared by:   TEAM NAK",
              ha="center", color="#aaaacc", fontsize=10)
     fig.text(0.5, 0.10, "May 2026",
              ha="center", color="#666688", fontsize=9)
@@ -375,7 +375,7 @@ def main():
 
         d = pdf.infodict()
         d["Title"]   = "Order Block Strategy Backtest Report"
-        d["Author"]  = "Nadir Ali — TEAM NAK"
+        d["Author"]  = "TEAM NAK"
         d["Subject"] = "XAUUSD EURUSD OB Strategy Edge Analysis"
 
     print(f"Saved: {OUTPUT_PDF}")
