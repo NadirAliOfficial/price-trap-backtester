@@ -12,7 +12,7 @@ input group "Order Block Detection (M5)"
 input double DojiBodyPct      = 0.20;   // Max body/range ratio for doji candle
 input double MinImpulseBody   = 0.70;   // Min body/range ratio for impulse candle
 input double MinImpulsePct    = 0.0003; // Min impulse body as fraction of price
-input double MinOBSizePct     = 0.0001; // Min OB zone size as fraction of price
+input double MinOBSizePct     = 0.0008; // Min OB zone size as fraction of price
 input int    OBExpiryBars     = 30;     // M1 bars before OB is invalidated (no touch)
 
 input group "Entry Confirmation (M1)"
@@ -50,7 +50,7 @@ input int    NewsMinsAfter    = 30;
 input group "General"
 input long   MagicNumber      = 20260101;
 input bool   ShowPanel        = true;
-input double MaxLotPerTrade   = 2.0;   // hard cap per order (safety)
+input double MaxLotPerTrade   = 5.0;   // hard cap per order (safety)
 
 // ──────────────────────────────────────────────────────────────────
 CTrade Trade;
@@ -192,9 +192,9 @@ void ScanM5ForOBs()
 
         double ema_val = ema5[doji_i];
         if(ema_val == 0) continue;
-        // bearish OB: doji below EMA (downtrend); bullish OB: doji above EMA (uptrend)
-        if(direction == -1 && d_c > ema_val) continue;
-        if(direction ==  1 && d_c < ema_val) continue;
+        // bearish OB at resistance above EMA; bullish OB at support below EMA
+        if(direction == -1 && d_c < ema_val) continue;
+        if(direction ==  1 && d_c > ema_val) continue;
 
         double p_h = iHigh(_Symbol, PERIOD_M5, prev_i);
         double p_l = iLow (_Symbol, PERIOD_M5, prev_i);
@@ -262,9 +262,6 @@ void CheckOBEntry()
         double ob_h = OBZones[i].ob_high;
         double ob_l = OBZones[i].ob_low;
 
-        if(dir == -1 && cur_c > cur_ema1) continue;
-        if(dir ==  1 && cur_c < cur_ema1) continue;
-
         if(dir == -1) {
             if(cur_h < ob_h) continue;
             double tol = ob_h * BbTouchTol;
@@ -309,15 +306,17 @@ void PlaceTrade(OBZone &ob)
     double maxLot   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
     double contract = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE);
 
-    if(tickV <= 0 || tickS <= 0) return;
+    if(contract <= 0 || risk <= 0) return;
     double riskMoney = bal * RiskPercent / 100.0;
-    double lotRaw    = riskMoney / (risk / tickS * tickV);
-    double lot       = MathFloor(lotRaw / lotStep) * lotStep;
+    // Use contract size: riskPerLot = SL_distance * contract_size (valid for USD-quoted symbols)
+    double riskPerLot = risk * contract;
+    double lotRaw     = riskMoney / riskPerLot;
+    double lot        = MathFloor(lotRaw / lotStep) * lotStep;
     lot = MathMax(minLot, MathMin(MathMin(maxLot, MaxLotPerTrade), lot));
 
     Print("PlaceTrade: entry=", entry, " sl=", sl, " risk=", risk,
-          " tickV=", tickV, " tickS=", tickS, " contract=", contract,
-          " riskMoney=", riskMoney, " lotRaw=", lotRaw, " lot=", lot);
+          " contract=", contract, " riskMoney=", riskMoney,
+          " riskPerLot=", riskPerLot, " lotRaw=", lotRaw, " lot=", lot);
 
     double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
     double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
