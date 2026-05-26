@@ -1,14 +1,14 @@
 //+------------------------------------------------------------------+
 //|  OrderBlockEA.mq5  —  Order Block Strategy                      |
-//|  M3 OB detection + M1 BB / EMA200 limit entry                   |
+//|  M5 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.00"
+#property version   "1.01"
 
 #include <Trade\Trade.mqh>
 
 // ── Strategy ──────────────────────────────────────────────────────
-input group "Order Block Detection (M3)"
+input group "Order Block Detection (M5)"
 input double DojiBodyPct      = 0.20;   // Max body/range ratio for doji candle
 input double MinImpulseBody   = 0.70;   // Min body/range ratio for impulse candle
 input double MinImpulsePct    = 0.0003; // Min impulse body as fraction of price
@@ -54,14 +54,14 @@ input bool   ShowPanel        = true;
 // ──────────────────────────────────────────────────────────────────
 CTrade Trade;
 
-int    EmaHandleM1    = INVALID_HANDLE;
-int    EmaHandleM3    = INVALID_HANDLE;
-int    BbHandleM1     = INVALID_HANDLE;
-int    AtrHandleM1    = INVALID_HANDLE;
+int    EmaHandleM1  = INVALID_HANDLE;
+int    EmaHandleM5  = INVALID_HANDLE;
+int    BbHandleM1   = INVALID_HANDLE;
+int    AtrHandleM1  = INVALID_HANDLE;
 
 struct OBZone {
     datetime time;
-    int      direction;  // 1=bullish  -1=bearish
+    int      direction;
     double   ob_high;
     double   ob_low;
     double   sl_ref;
@@ -69,34 +69,35 @@ struct OBZone {
     bool     triggered;
 };
 
-OBZone  OBZones[];
-int     OBCount = 0;
-
-datetime LastM3Bar  = 0;
-datetime LastDayDD  = 0;
+OBZone   OBZones[];
+int      OBCount = 0;
+bool     FirstScan = true;
+datetime LastM5Bar = 0;
+datetime LastDayDD = 0;
 double   DayStartBalance = 0;
 
 // ──────────────────────────────────────────────────────────────────
 int OnInit()
 {
     EmaHandleM1 = iMA(_Symbol, PERIOD_M1, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-    EmaHandleM3 = iMA(_Symbol, PERIOD_M3, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+    EmaHandleM5 = iMA(_Symbol, PERIOD_M5, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
     BbHandleM1  = iBands(_Symbol, PERIOD_M1, BbPeriod, 0, BbStdDev, PRICE_CLOSE);
     AtrHandleM1 = iATR(_Symbol, PERIOD_M1, (int)AtrPeriod);
 
-    if(EmaHandleM1 == INVALID_HANDLE || EmaHandleM3 == INVALID_HANDLE ||
-       BbHandleM1 == INVALID_HANDLE || AtrHandleM1 == INVALID_HANDLE)
+    if(EmaHandleM1 == INVALID_HANDLE || EmaHandleM5 == INVALID_HANDLE ||
+       BbHandleM1  == INVALID_HANDLE || AtrHandleM1  == INVALID_HANDLE)
     {
         Alert("OrderBlockEA: indicator handle creation failed");
         return INIT_FAILED;
     }
 
-    ArrayResize(OBZones, 200);
+    ArrayResize(OBZones, 500);
     Trade.SetExpertMagicNumber(MagicNumber);
     Trade.SetDeviationInPoints(10);
 
     DayStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
-    LastDayDD = iTime(_Symbol, PERIOD_D1, 0);
+    LastDayDD       = iTime(_Symbol, PERIOD_D1, 0);
+    FirstScan       = true;
 
     return INIT_SUCCEEDED;
 }
@@ -104,7 +105,7 @@ int OnInit()
 void OnDeinit(int reason)
 {
     if(EmaHandleM1 != INVALID_HANDLE) IndicatorRelease(EmaHandleM1);
-    if(EmaHandleM3 != INVALID_HANDLE) IndicatorRelease(EmaHandleM3);
+    if(EmaHandleM5 != INVALID_HANDLE) IndicatorRelease(EmaHandleM5);
     if(BbHandleM1  != INVALID_HANDLE) IndicatorRelease(BbHandleM1);
     if(AtrHandleM1 != INVALID_HANDLE) IndicatorRelease(AtrHandleM1);
     if(ShowPanel) DeletePanel();
@@ -118,7 +119,7 @@ void OnTick()
     if(!IsSession())      return;
 
     ManageTrailingStop();
-    ScanM3ForOBs();
+    ScanM5ForOBs();
     CheckOBEntry();
 
     if(ShowPanel) DrawPanel();
@@ -145,75 +146,72 @@ bool DailyDDBreached()
 }
 
 // ──────────────────────────────────────────────────────────────────
-// M3 OB detection — runs once per new M3 bar
+// M5 OB detection — runs once per new M5 bar
 // ──────────────────────────────────────────────────────────────────
-void ScanM3ForOBs()
+void ScanM5ForOBs()
 {
-    datetime barTime = iTime(_Symbol, PERIOD_M3, 1);
-    if(barTime == LastM3Bar) return;
-    LastM3Bar = barTime;
+    datetime barTime = iTime(_Symbol, PERIOD_M5, 1);
+    if(barTime == 0) return;
 
-    // need at least 3 closed M3 bars: [2]=prev  [1]=doji  [0 but use 1-based: 2]=impulse
-    // index 0 = current forming bar, so closed bars start at 1
-    // We need:  bar[3]=prev, bar[2]=doji, bar[1]=impulse (all closed)
-    double ema3[];
-    ArraySetAsSeries(ema3, true);
-    if(CopyBuffer(EmaHandleM3, 0, 0, 5, ema3) < 5) return;
+    // On first call, initialise LastM5Bar so we process the next new bar
+    if(FirstScan) { LastM5Bar = barTime; FirstScan = false; return; }
+    if(barTime == LastM5Bar) return;
+    LastM5Bar = barTime;
 
-    for(int i = 3; i >= 1; i--) {
-        // doji = bar[i+1], impulse = bar[i], prev = bar[i+2]
-        int doji_i    = i + 1;
+    // Require EMA to be warmed up
+    double ema5[];
+    ArraySetAsSeries(ema5, true);
+    if(CopyBuffer(EmaHandleM5, 0, 0, EmaPeriod + 10, ema5) < EmaPeriod + 5) return;
+
+    // Scan last 3 closed M5 bars: prev[3], doji[2], impulse[1]
+    for(int i = 1; i <= 3; i++) {
         int impulse_i = i;
+        int doji_i    = i + 1;
         int prev_i    = i + 2;
 
-        if(prev_i > 10) continue;  // safety
-
-        double d_o  = iOpen (_Symbol, PERIOD_M3, doji_i);
-        double d_c  = iClose(_Symbol, PERIOD_M3, doji_i);
-        double d_h  = iHigh (_Symbol, PERIOD_M3, doji_i);
-        double d_l  = iLow  (_Symbol, PERIOD_M3, doji_i);
-        double d_r  = d_h - d_l;
-        if(d_r == 0) continue;
+        double d_o = iOpen (_Symbol, PERIOD_M5, doji_i);
+        double d_c = iClose(_Symbol, PERIOD_M5, doji_i);
+        double d_h = iHigh (_Symbol, PERIOD_M5, doji_i);
+        double d_l = iLow  (_Symbol, PERIOD_M5, doji_i);
+        double d_r = d_h - d_l;
+        if(d_r == 0 || d_o == 0) continue;
         if(MathAbs(d_c - d_o) / d_r > DojiBodyPct) continue;
 
-        double n_o  = iOpen (_Symbol, PERIOD_M3, impulse_i);
-        double n_c  = iClose(_Symbol, PERIOD_M3, impulse_i);
-        double n_h  = iHigh (_Symbol, PERIOD_M3, impulse_i);
-        double n_l  = iLow  (_Symbol, PERIOD_M3, impulse_i);
-        double n_r  = n_h - n_l;
-        double n_b  = MathAbs(n_c - n_o);
-        if(n_r == 0) continue;
+        double n_o = iOpen (_Symbol, PERIOD_M5, impulse_i);
+        double n_c = iClose(_Symbol, PERIOD_M5, impulse_i);
+        double n_h = iHigh (_Symbol, PERIOD_M5, impulse_i);
+        double n_l = iLow  (_Symbol, PERIOD_M5, impulse_i);
+        double n_r = n_h - n_l;
+        double n_b = MathAbs(n_c - n_o);
+        if(n_r == 0 || n_o == 0) continue;
         if(n_b / n_r < MinImpulseBody) continue;
         if(n_b < n_c * MinImpulsePct)  continue;
 
         int direction = (n_c < n_o) ? -1 : 1;
 
-        double ema_val = ema3[doji_i];
+        double ema_val = ema5[doji_i];
         if(ema_val == 0) continue;
-        if(direction == -1 && d_c < ema_val) continue;  // bearish OB must be above EMA
-        if(direction ==  1 && d_c > ema_val) continue;  // bullish OB must be below EMA
+        if(direction == -1 && d_c < ema_val) continue;
+        if(direction ==  1 && d_c > ema_val) continue;
 
-        // imbalance: impulse must break through prev bar
-        double p_h = iHigh(_Symbol, PERIOD_M3, prev_i);
-        double p_l = iLow (_Symbol, PERIOD_M3, prev_i);
+        double p_h = iHigh(_Symbol, PERIOD_M5, prev_i);
+        double p_l = iLow (_Symbol, PERIOD_M5, prev_i);
         if(direction == -1 && n_c >= p_l) continue;
         if(direction ==  1 && n_c <= p_h) continue;
 
         double ob_high = MathMax(d_o, d_c);
         double ob_low  = MathMin(d_o, d_c);
         if(ob_high == ob_low) { ob_high = d_h; ob_low = d_l; }
-
         if((ob_high - ob_low) < ob_high * MinOBSizePct) continue;
 
-        // check we don't already have this OB
-        datetime ob_time = iTime(_Symbol, PERIOD_M3, impulse_i);
+        datetime ob_time = iTime(_Symbol, PERIOD_M5, impulse_i);
         bool dup = false;
         for(int k = 0; k < OBCount; k++) {
             if(OBZones[k].time == ob_time) { dup = true; break; }
         }
         if(dup) continue;
 
-        if(OBCount >= ArraySize(OBZones)) ArrayResize(OBZones, OBCount + 50);
+        if(OBCount >= ArraySize(OBZones)) ArrayResize(OBZones, OBCount + 100);
         OBZones[OBCount].time      = ob_time;
         OBZones[OBCount].direction = direction;
         OBZones[OBCount].ob_high   = ob_high;
@@ -222,11 +220,12 @@ void ScanM3ForOBs()
         OBZones[OBCount].active    = true;
         OBZones[OBCount].triggered = false;
         OBCount++;
+        Print("OB detected: dir=", direction, " high=", ob_high, " low=", ob_low, " time=", ob_time);
     }
 }
 
 // ──────────────────────────────────────────────────────────────────
-// M1 entry: BB outer band touching OB + EMA200 M1 alignment
+// M1 entry: BB outer band touching OB zone + EMA200 M1 alignment
 // ──────────────────────────────────────────────────────────────────
 void CheckOBEntry()
 {
@@ -249,31 +248,32 @@ void CheckOBEntry()
     double cur_bbl  = bb_lower[1];
     datetime cur_t  = iTime(_Symbol, PERIOD_M1, 1);
 
+    if(cur_ema1 == 0 || cur_bbu == 0 || cur_bbl == 0) return;
+
     for(int i = 0; i < OBCount; i++) {
         if(!OBZones[i].active || OBZones[i].triggered) continue;
 
-        // expiry check
         int bars_since = (int)((cur_t - OBZones[i].time) / 60);
         if(bars_since > OBExpiryBars) { OBZones[i].active = false; continue; }
 
-        int dir = OBZones[i].direction;
+        int    dir  = OBZones[i].direction;
         double ob_h = OBZones[i].ob_high;
         double ob_l = OBZones[i].ob_low;
 
-        // EMA200 M1 alignment
         if(dir == -1 && cur_c > cur_ema1) continue;
         if(dir ==  1 && cur_c < cur_ema1) continue;
 
         if(dir == -1) {
-            if(cur_h < ob_h) continue;   // price must reach the zone
+            if(cur_h < ob_h) continue;
             double tol = ob_h * BbTouchTol;
-            if(!(cur_bbu >= ob_l - tol && cur_bbu <= ob_h * (1.0 + BbTouchTol))) continue;
+            if(!(cur_bbu >= ob_l - tol && cur_bbu <= ob_h + tol)) continue;
         } else {
             if(cur_l > ob_l) continue;
             double tol = ob_l * BbTouchTol;
-            if(!(cur_bbl >= ob_l * (1.0 - BbTouchTol) && cur_bbl <= ob_h + tol)) continue;
+            if(!(cur_bbl >= ob_l - tol && cur_bbl <= ob_h + tol)) continue;
         }
 
+        Print("OB entry triggered: dir=", dir, " ob_h=", ob_h, " ob_l=", ob_l);
         PlaceTrade(OBZones[i]);
         OBZones[i].triggered = true;
         OBZones[i].active    = false;
@@ -292,12 +292,12 @@ void PlaceTrade(OBZone &ob)
     double risk  = MathAbs(entry - sl);
     if(risk == 0) return;
 
-    double tp1   = (dir == -1) ? entry - risk * TP1_RR : entry + risk * TP1_RR;
-    double tp2   = (dir == -1) ? entry - risk * TP2_RR : entry + risk * TP2_RR;
+    double tp1 = (dir == -1) ? entry - risk * TP1_RR : entry + risk * TP1_RR;
+    double tp2 = (dir == -1) ? entry - risk * TP2_RR : entry + risk * TP2_RR;
 
-    double bal   = AccountInfoDouble(ACCOUNT_BALANCE);
-    double tickV = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-    double tickS = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+    double bal     = AccountInfoDouble(ACCOUNT_BALANCE);
+    double tickV   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+    double tickS   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
     double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
     double minLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
     double maxLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
@@ -312,12 +312,10 @@ void PlaceTrade(OBZone &ob)
     double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
 
     if(dir == -1) {
-        // bearish: sell limit above current price
         if(entry <= bid) return;
         Trade.SellLimit(lot, entry, _Symbol, sl, tp1, ORDER_TIME_GTC, 0, "OB T1");
         Trade.SellLimit(lot, entry, _Symbol, sl, tp2, ORDER_TIME_GTC, 0, "OB T2");
     } else {
-        // bullish: buy limit below current price
         if(entry >= ask) return;
         Trade.BuyLimit(lot, entry, _Symbol, sl, tp1, ORDER_TIME_GTC, 0, "OB T1");
         Trade.BuyLimit(lot, entry, _Symbol, sl, tp2, ORDER_TIME_GTC, 0, "OB T2");
@@ -325,7 +323,7 @@ void PlaceTrade(OBZone &ob)
 }
 
 // ──────────────────────────────────────────────────────────────────
-// ATR trailing stop on T2 position after T1 hits
+// ATR trailing stop on T2 after T1 hits
 // ──────────────────────────────────────────────────────────────────
 void ManageTrailingStop()
 {
@@ -335,9 +333,10 @@ void ManageTrailingStop()
     double trailDist = atr[1] * AtrMultiplier;
 
     for(int i = PositionsTotal() - 1; i >= 0; i--) {
-        if(!PositionSelectByTicket(PositionGetTicket(i))) continue;
-        if(PositionGetInteger(POSITION_MAGIC) != MagicNumber) continue;
-        if(PositionGetString(POSITION_COMMENT) != "OB T2") continue;
+        ulong ticket = PositionGetTicket(i);
+        if(!PositionSelectByTicket(ticket)) continue;
+        if(PositionGetInteger(POSITION_MAGIC)   != MagicNumber) continue;
+        if(PositionGetString(POSITION_COMMENT)  != "OB T2")     continue;
 
         double open_price = PositionGetDouble(POSITION_PRICE_OPEN);
         double cur_sl     = PositionGetDouble(POSITION_SL);
@@ -348,13 +347,12 @@ void ManageTrailingStop()
 
         if(pos_type == POSITION_TYPE_BUY) {
             double new_sl = bid - trailDist;
-            // only trail if we're in profit (above open) and new SL is higher
             if(bid > open_price && new_sl > cur_sl)
-                Trade.PositionModify(PositionGetTicket(i), new_sl, cur_tp);
+                Trade.PositionModify(ticket, new_sl, cur_tp);
         } else {
             double new_sl = ask + trailDist;
             if(ask < open_price && new_sl < cur_sl)
-                Trade.PositionModify(PositionGetTicket(i), new_sl, cur_tp);
+                Trade.PositionModify(ticket, new_sl, cur_tp);
         }
     }
 }
@@ -367,13 +365,11 @@ int CountActiveOrders()
     int cnt = 0;
     for(int i = OrdersTotal() - 1; i >= 0; i--) {
         ulong ticket = OrderGetTicket(i);
-        if(OrderSelect(ticket) && OrderGetInteger(ORDER_MAGIC) == MagicNumber)
-            cnt++;
+        if(OrderSelect(ticket) && OrderGetInteger(ORDER_MAGIC) == MagicNumber) cnt++;
     }
     for(int i = PositionsTotal() - 1; i >= 0; i--) {
         ulong ticket = PositionGetTicket(i);
-        if(PositionSelectByTicket(ticket) && PositionGetInteger(POSITION_MAGIC) == MagicNumber)
-            cnt++;
+        if(PositionSelectByTicket(ticket) && PositionGetInteger(POSITION_MAGIC) == MagicNumber) cnt++;
     }
     return cnt;
 }
@@ -391,8 +387,8 @@ bool IsWeekend()
     if(!UseWeekendFilter) return false;
     MqlDateTime dt;
     TimeToStruct(TimeGMT(), dt);
-    if(dt.day_of_week == 6) return true;  // Saturday
-    if(dt.day_of_week == 0) return true;  // Sunday
+    if(dt.day_of_week == 6) return true;
+    if(dt.day_of_week == 0) return true;
     if(dt.day_of_week == 5 && dt.hour >= FridayCloseHour) return true;
     return false;
 }
@@ -411,12 +407,12 @@ void DrawPanel()
     double dd  = (DayStartBalance - MathMin(bal, eq)) / DayStartBalance * 100.0;
 
     string lines[6];
-    lines[0] = "Order Block EA";
+    lines[0] = "Order Block EA v1.01";
     lines[1] = StringFormat("Active OBs   : %d", active_ob);
     lines[2] = StringFormat("Open orders  : %d", CountActiveOrders());
     lines[3] = StringFormat("Daily DD     : %.2f%%", dd);
     lines[4] = StringFormat("Balance      : %.2f", bal);
-    lines[5] = DailyDDBreached() ? ">> DD LIMIT — HALTED <<" : "Running";
+    lines[5] = DailyDDBreached() ? ">> DD LIMIT - HALTED <<" : "Running";
 
     int x = 10, y = 20, lh = 18;
     for(int i = 0; i < 6; i++) {
