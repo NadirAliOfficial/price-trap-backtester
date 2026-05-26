@@ -50,6 +50,7 @@ input int    NewsMinsAfter    = 30;
 input group "General"
 input long   MagicNumber      = 20260101;
 input bool   ShowPanel        = true;
+input double MaxLotPerTrade   = 2.0;   // hard cap per order (safety)
 
 // ──────────────────────────────────────────────────────────────────
 CTrade Trade;
@@ -292,21 +293,30 @@ void PlaceTrade(OBZone &ob)
     double risk  = MathAbs(entry - sl);
     if(risk == 0) return;
 
+    // Enforce minimum SL distance (50 points) to prevent oversized lots
+    double minRisk = 50 * SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+    if(risk < minRisk) risk = minRisk;
+
     double tp1 = (dir == -1) ? entry - risk * TP1_RR : entry + risk * TP1_RR;
     double tp2 = (dir == -1) ? entry - risk * TP2_RR : entry + risk * TP2_RR;
 
-    double bal     = AccountInfoDouble(ACCOUNT_BALANCE);
-    double tickV   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
-    double tickS   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-    double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-    double minLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-    double maxLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+    double bal      = AccountInfoDouble(ACCOUNT_BALANCE);
+    double tickV    = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+    double tickS    = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+    double lotStep  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+    double minLot   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+    double maxLot   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+    double contract = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE);
 
-    if(tickV == 0 || tickS == 0) return;
+    if(tickV <= 0 || tickS <= 0) return;
     double riskMoney = bal * RiskPercent / 100.0;
     double lotRaw    = riskMoney / (risk / tickS * tickV);
     double lot       = MathFloor(lotRaw / lotStep) * lotStep;
-    lot = MathMax(minLot, MathMin(maxLot, lot));
+    lot = MathMax(minLot, MathMin(MathMin(maxLot, MaxLotPerTrade), lot));
+
+    Print("PlaceTrade: entry=", entry, " sl=", sl, " risk=", risk,
+          " tickV=", tickV, " tickS=", tickS, " contract=", contract,
+          " riskMoney=", riskMoney, " lotRaw=", lotRaw, " lot=", lot);
 
     double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
     double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
