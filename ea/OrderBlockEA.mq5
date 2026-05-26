@@ -51,6 +51,8 @@ input group "General"
 input long   MagicNumber      = 20260101;
 input bool   ShowPanel        = true;
 input double MaxLotPerTrade   = 5.0;   // hard cap per order (safety)
+input bool   TradeShorts      = true;
+input bool   TradeLongs       = false;
 
 // ──────────────────────────────────────────────────────────────────
 CTrade Trade;
@@ -263,11 +265,15 @@ void CheckOBEntry()
         double ob_l = OBZones[i].ob_low;
 
         if(dir == -1) {
+            if(!TradeShorts) continue;
             if(cur_h < ob_h) continue;
+            if(cur_c > cur_ema1) continue;  // M1 EMA confirms bearish trend
             double tol = ob_h * BbTouchTol;
             if(!(cur_bbu >= ob_l - tol && cur_bbu <= ob_h + tol)) continue;
         } else {
+            if(!TradeLongs) continue;
             if(cur_l > ob_l) continue;
+            if(cur_c < cur_ema1) continue;  // M1 EMA confirms bullish trend
             double tol = ob_l * BbTouchTol;
             if(!(cur_bbl >= ob_l - tol && cur_bbl <= ob_h + tol)) continue;
         }
