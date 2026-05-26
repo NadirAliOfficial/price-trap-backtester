@@ -192,8 +192,9 @@ void ScanM5ForOBs()
 
         double ema_val = ema5[doji_i];
         if(ema_val == 0) continue;
-        if(direction == -1 && d_c < ema_val) continue;
-        if(direction ==  1 && d_c > ema_val) continue;
+        // bearish OB: doji below EMA (downtrend); bullish OB: doji above EMA (uptrend)
+        if(direction == -1 && d_c > ema_val) continue;
+        if(direction ==  1 && d_c < ema_val) continue;
 
         double p_h = iHigh(_Symbol, PERIOD_M5, prev_i);
         double p_l = iLow (_Symbol, PERIOD_M5, prev_i);
