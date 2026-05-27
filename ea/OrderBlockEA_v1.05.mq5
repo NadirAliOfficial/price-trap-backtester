@@ -3,7 +3,7 @@
 //|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.04"
+#property version   "1.05"
 
 #include <Trade\Trade.mqh>
 
@@ -52,7 +52,7 @@ input long   MagicNumber      = 20260101;
 input bool   ShowPanel        = true;
 input double MaxLotPerTrade   = 5.0;   // hard cap per order (safety)
 input bool   TradeShorts      = true;
-input bool   TradeLongs       = false;
+input bool   TradeLongs       = true;
 
 // ──────────────────────────────────────────────────────────────────
 CTrade Trade;
@@ -196,9 +196,9 @@ void ScanM3ForOBs()
 
         double ema_val = ema5[doji_i];
         if(ema_val == 0) continue;
-        // bearish OB at resistance above EMA; bullish OB at support below EMA
+        // bearish OB at resistance above EMA; bullish OB as pullback in uptrend above EMA
         if(direction == -1 && d_c < ema_val) continue;
-        if(direction ==  1 && d_c > ema_val) continue;
+        if(direction ==  1 && d_c < ema_val) continue;
 
         double p_h = iHigh(_Symbol, PERIOD_M3, prev_i);
         double p_l = iLow (_Symbol, PERIOD_M3, prev_i);
