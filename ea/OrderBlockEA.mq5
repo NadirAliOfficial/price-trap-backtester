@@ -19,7 +19,7 @@ input group "Entry Confirmation (M1)"
 input int    EmaPeriod        = 200;
 input int    BbPeriod         = 20;
 input double BbStdDev         = 2.0;
-input double BbTouchTol       = 0.005; // tolerance fraction for BB touching OB zone
+input double BbTouchTol       = 0.008; // tolerance fraction for BB touching OB zone
 
 input group "Risk & Targets"
 input double RiskPercent      = 1.0;   // % risk per trade leg
@@ -27,7 +27,7 @@ input double TP1_RR           = 1.0;   // TP1 reward:risk
 input double TP2_RR           = 2.0;   // TP2 reward:risk (uses ATR trailing)
 input double AtrPeriod        = 14;    // ATR period for trailing stop
 input double AtrMultiplier    = 1.5;   // ATR multiplier for trailing distance
-input double SLBufferPct      = 0.50;  // SL buffer as fraction of OB size
+input double SLBufferPct      = 1.0;   // SL buffer as fraction of OB size
 
 input group "Protection"
 input double MaxDailyDrawdown = 3.0;   // Max daily DD % before halting
