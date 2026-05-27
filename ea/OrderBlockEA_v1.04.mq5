@@ -3,7 +3,7 @@
 //|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.03"
+#property version   "1.04"
 
 #include <Trade\Trade.mqh>
 
@@ -432,7 +432,21 @@ void DrawPanel()
     lines[4] = StringFormat("Balance      : %.2f", bal);
     lines[5] = DailyDDBreached() ? ">> DD LIMIT - HALTED <<" : "Running";
 
-    int x = 10, y = 20, lh = 18;
+    int x = 10, y = 10, lh = 18, pw = 200, ph = 130;
+
+    // background
+    if(ObjectFind(0, "OB_Panel_BG") < 0)
+        ObjectCreate(0, "OB_Panel_BG", OBJ_RECTANGLE_LABEL, 0, 0, 0);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_CORNER,    CORNER_LEFT_UPPER);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_XDISTANCE, x - 6);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_YDISTANCE, y - 6);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_XSIZE,     pw);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_YSIZE,     ph);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_BGCOLOR,   C'20,20,40');
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_BORDER_TYPE, BORDER_FLAT);
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_COLOR,     C'80,80,120');
+    ObjectSetInteger(0, "OB_Panel_BG", OBJPROP_WIDTH,     1);
+
     for(int i = 0; i < 6; i++) {
         string name = "OB_Panel_" + IntegerToString(i);
         if(ObjectFind(0, name) < 0)
@@ -450,6 +464,7 @@ void DrawPanel()
 
 void DeletePanel()
 {
+    ObjectDelete(0, "OB_Panel_BG");
     for(int i = 0; i < 6; i++)
         ObjectDelete(0, "OB_Panel_" + IntegerToString(i));
 }
