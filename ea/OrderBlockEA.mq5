@@ -438,7 +438,7 @@ void DrawPanel()
         ObjectSetInteger(0, name, OBJPROP_CORNER,    CORNER_LEFT_UPPER);
         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y + i * lh);
-        ObjectSetInteger(0, name, OBJPROP_COLOR,     i == 5 && DailyDDBreached() ? clrRed : clrWhite);
+        ObjectSetInteger(0, name, OBJPROP_COLOR,     i == 5 && DailyDDBreached() ? clrRed : clrBlack);
         ObjectSetInteger(0, name, OBJPROP_FONTSIZE,  9);
         ObjectSetString (0, name, OBJPROP_TEXT,      lines[i]);
         ObjectSetString (0, name, OBJPROP_FONT,      "Courier New");
