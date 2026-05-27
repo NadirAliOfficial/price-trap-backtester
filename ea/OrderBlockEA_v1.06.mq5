@@ -3,7 +3,7 @@
 //|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.05"
+#property version   "1.06"
 
 #include <Trade\Trade.mqh>
 
@@ -59,6 +59,7 @@ CTrade Trade;
 
 int    EmaHandleM1  = INVALID_HANDLE;
 int    EmaHandleM3  = INVALID_HANDLE;
+int    EmaHandleH1  = INVALID_HANDLE;
 int    BbHandleM1   = INVALID_HANDLE;
 int    AtrHandleM1  = INVALID_HANDLE;
 
@@ -84,10 +85,12 @@ int OnInit()
 {
     EmaHandleM1 = iMA(_Symbol, PERIOD_M1, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
     EmaHandleM3 = iMA(_Symbol, PERIOD_M3, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+    EmaHandleH1 = iMA(_Symbol, PERIOD_H1, 50, 0, MODE_EMA, PRICE_CLOSE);
     BbHandleM1  = iBands(_Symbol, PERIOD_M1, BbPeriod, 0, BbStdDev, PRICE_CLOSE);
     AtrHandleM1 = iATR(_Symbol, PERIOD_M1, (int)AtrPeriod);
 
     if(EmaHandleM1 == INVALID_HANDLE || EmaHandleM3 == INVALID_HANDLE ||
+       EmaHandleH1 == INVALID_HANDLE ||
        BbHandleM1  == INVALID_HANDLE || AtrHandleM1  == INVALID_HANDLE)
     {
         Alert("OrderBlockEA: indicator handle creation failed");
@@ -111,6 +114,7 @@ void OnDeinit(const int reason)
 {
     if(EmaHandleM1 != INVALID_HANDLE) IndicatorRelease(EmaHandleM1);
     if(EmaHandleM3 != INVALID_HANDLE) IndicatorRelease(EmaHandleM3);
+    if(EmaHandleH1 != INVALID_HANDLE) IndicatorRelease(EmaHandleH1);
     if(BbHandleM1  != INVALID_HANDLE) IndicatorRelease(BbHandleM1);
     if(AtrHandleM1 != INVALID_HANDLE) IndicatorRelease(AtrHandleM1);
     if(ShowPanel) DeletePanel();
@@ -269,13 +273,19 @@ void CheckOBEntry()
         if(dir == -1) {
             if(!TradeShorts) continue;
             if(cur_h < ob_h) continue;
-            if(cur_c > cur_ema1) continue;  // M1 EMA confirms bearish trend
+            if(cur_c > cur_ema1) continue;
             double tol = ob_h * BbTouchTol;
             if(!(cur_bbu >= ob_l - tol && cur_bbu <= ob_h + tol)) continue;
         } else {
             if(!TradeLongs) continue;
             if(cur_l > ob_l) continue;
-            if(cur_c < cur_ema1) continue;  // M1 EMA confirms bullish trend
+            if(cur_c < cur_ema1) continue;
+            // H1 EMA50 trend gate — only long when H1 is in uptrend
+            double h1ema[];
+            ArraySetAsSeries(h1ema, true);
+            if(CopyBuffer(EmaHandleH1, 0, 0, 2, h1ema) < 2) continue;
+            double h1_close = iClose(_Symbol, PERIOD_H1, 1);
+            if(h1_close < h1ema[1]) continue;
             double tol = ob_l * BbTouchTol;
             if(!(cur_bbl >= ob_l - tol && cur_bbl <= ob_h + tol)) continue;
         }
