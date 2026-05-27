@@ -12,7 +12,7 @@ input group "Order Block Detection (M3)"
 input double DojiBodyPct      = 0.20;   // Max body/range ratio for doji candle
 input double MinImpulseBody   = 0.70;   // Min body/range ratio for impulse candle
 input double MinImpulsePct    = 0.0003; // Min impulse body as fraction of price
-input double MinOBSizePct     = 0.0008; // Min OB zone size as fraction of price
+input double MinOBSizePct     = 0.0002; // Min OB zone size as fraction of price
 input int    OBExpiryBars     = 30;     // M1 bars before OB is invalidated (no touch)
 
 input group "Entry Confirmation (M1)"
