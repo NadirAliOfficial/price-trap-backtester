@@ -3,7 +3,7 @@
 //|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.02"
+#property version   "1.03"
 
 #include <Trade\Trade.mqh>
 
