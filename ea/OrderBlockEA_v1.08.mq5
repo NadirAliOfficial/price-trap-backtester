@@ -3,7 +3,7 @@
 //|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.07"
+#property version   "1.08"
 
 #include <Trade\Trade.mqh>
 
@@ -172,7 +172,7 @@ void ScanM3ForOBs()
     ArraySetAsSeries(ema5, true);
     if(CopyBuffer(EmaHandleM3, 0, 0, EmaPeriod + 10, ema5) < EmaPeriod + 5) return;
 
-    // Scan last 3 closed M5 bars: prev[3], doji[2], impulse[1]
+    // Scan last 3 closed M3 bars: prev[3], doji[2], impulse[1]
     for(int i = 1; i <= 3; i++) {
         int impulse_i = i;
         int doji_i    = i + 1;
@@ -332,21 +332,36 @@ void PlaceTrade(OBZone &ob)
     double lot        = MathFloor(lotRaw / lotStep) * lotStep;
     lot = MathMax(minLot, MathMin(MathMin(maxLot, MaxLotPerTrade), lot));
 
+    // Split lot in half between T1 and T2 so total setup risk = RiskPercent
+    double halfLot = MathFloor((lot / 2.0) / lotStep) * lotStep;
+    double t1Lot, t2Lot;
+    if(halfLot >= minLot) {
+        t1Lot = halfLot;
+        t2Lot = halfLot;
+    } else {
+        // Account too small to split: use full lot on T1 only
+        t1Lot = lot;
+        t2Lot = 0;
+    }
+
     Print("PlaceTrade: entry=", entry, " sl=", sl, " risk=", risk,
           " contract=", contract, " riskMoney=", riskMoney,
-          " riskPerLot=", riskPerLot, " lotRaw=", lotRaw, " lot=", lot);
+          " riskPerLot=", riskPerLot, " lotRaw=", lotRaw,
+          " t1Lot=", t1Lot, " t2Lot=", t2Lot);
 
     double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
     double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
 
     if(dir == -1) {
         if(entry <= bid) return;
-        Trade.SellLimit(lot, entry, _Symbol, sl, tp1, ORDER_TIME_GTC, 0, "OB T1");
-        Trade.SellLimit(lot, entry, _Symbol, sl, tp2, ORDER_TIME_GTC, 0, "OB T2");
+        Trade.SellLimit(t1Lot, entry, _Symbol, sl, tp1, ORDER_TIME_GTC, 0, "OB T1");
+        if(t2Lot > 0)
+            Trade.SellLimit(t2Lot, entry, _Symbol, sl, tp2, ORDER_TIME_GTC, 0, "OB T2");
     } else {
         if(entry >= ask) return;
-        Trade.BuyLimit(lot, entry, _Symbol, sl, tp1, ORDER_TIME_GTC, 0, "OB T1");
-        Trade.BuyLimit(lot, entry, _Symbol, sl, tp2, ORDER_TIME_GTC, 0, "OB T2");
+        Trade.BuyLimit(t1Lot, entry, _Symbol, sl, tp1, ORDER_TIME_GTC, 0, "OB T1");
+        if(t2Lot > 0)
+            Trade.BuyLimit(t2Lot, entry, _Symbol, sl, tp2, ORDER_TIME_GTC, 0, "OB T2");
     }
 }
 
@@ -373,16 +388,41 @@ void ManageTrailingStop()
         double bid        = SymbolInfoDouble(_Symbol, SYMBOL_BID);
         double ask        = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
 
+        // If T1 sibling is no longer open (TP1 hit), move T2 SL to breakeven first
+        bool t1Gone = !HasT1Sibling(open_price, pos_type);
+
         if(pos_type == POSITION_TYPE_BUY) {
+            if(t1Gone && cur_sl < open_price) {
+                Trade.PositionModify(ticket, open_price, cur_tp);
+                cur_sl = open_price;
+            }
             double new_sl = bid - trailDist;
             if(bid > open_price && new_sl > cur_sl)
                 Trade.PositionModify(ticket, new_sl, cur_tp);
         } else {
+            if(t1Gone && cur_sl > open_price) {
+                Trade.PositionModify(ticket, open_price, cur_tp);
+                cur_sl = open_price;
+            }
             double new_sl = ask + trailDist;
             if(ask < open_price && new_sl < cur_sl)
                 Trade.PositionModify(ticket, new_sl, cur_tp);
         }
     }
+}
+
+bool HasT1Sibling(double openPrice, int posType)
+{
+    for(int i = PositionsTotal() - 1; i >= 0; i--) {
+        ulong ticket = PositionGetTicket(i);
+        if(!PositionSelectByTicket(ticket)) continue;
+        if(PositionGetInteger(POSITION_MAGIC)  != MagicNumber) continue;
+        if(PositionGetString(POSITION_COMMENT) != "OB T1")     continue;
+        if((int)PositionGetInteger(POSITION_TYPE) != posType)  continue;
+        if(MathAbs(PositionGetDouble(POSITION_PRICE_OPEN) - openPrice) < _Point)
+            return true;
+    }
+    return false;
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -435,7 +475,7 @@ void DrawPanel()
     double dd  = (DayStartBalance - MathMin(bal, eq)) / DayStartBalance * 100.0;
 
     string lines[6];
-    lines[0] = "Order Block EA v1.01";
+    lines[0] = "Order Block EA v1.08";
     lines[1] = StringFormat("Active OBs   : %d", active_ob);
     lines[2] = StringFormat("Open orders  : %d", CountActiveOrders());
     lines[3] = StringFormat("Daily DD     : %.2f%%", dd);
