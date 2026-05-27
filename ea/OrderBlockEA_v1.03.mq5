@@ -107,7 +107,7 @@ int OnInit()
     return INIT_SUCCEEDED;
 }
 
-void OnDeinit(int reason)
+void OnDeinit(const int reason)
 {
     if(EmaHandleM1 != INVALID_HANDLE) IndicatorRelease(EmaHandleM1);
     if(EmaHandleM3 != INVALID_HANDLE) IndicatorRelease(EmaHandleM3);
