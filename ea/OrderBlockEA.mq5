@@ -102,6 +102,8 @@ int OnInit()
     LastDayDD       = iTime(_Symbol, PERIOD_D1, 0);
     FirstScan       = true;
 
+    if(ShowPanel) { DrawPanel(); ChartRedraw(); }
+
     return INIT_SUCCEEDED;
 }
 
