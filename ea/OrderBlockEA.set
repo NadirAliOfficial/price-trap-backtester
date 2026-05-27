@@ -1,11 +1,11 @@
-; OrderBlockEA default preset — XAUUSD / EURUSD / US30
-; Copy to MT5 \Profiles\Tester\ and load in Strategy Tester inputs
+; OrderBlockEA v1.07 preset — run on XAUUSD M1 + EURUSD M1 simultaneously
+; Copy to MT5 MQL5\Presets\ and load in EA inputs
 
 DojiBodyPct=0.20
 MinImpulseBody=0.70
 MinImpulsePct=0.0003
 MinOBSizePct=0.0001
-OBExpiryBars=30
+OBExpiryBars=120
 EmaPeriod=200
 BbPeriod=20
 BbStdDev=2.0
@@ -28,3 +28,6 @@ NewsMinsBefore=30
 NewsMinsAfter=30
 MagicNumber=20260101
 ShowPanel=true
+MaxLotPerTrade=5.0
+TradeShorts=true
+TradeLongs=false

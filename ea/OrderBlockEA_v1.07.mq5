@@ -3,7 +3,7 @@
 //|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.06"
+#property version   "1.07"
 
 #include <Trade\Trade.mqh>
 
@@ -52,7 +52,7 @@ input long   MagicNumber      = 20260101;
 input bool   ShowPanel        = true;
 input double MaxLotPerTrade   = 5.0;   // hard cap per order (safety)
 input bool   TradeShorts      = true;
-input bool   TradeLongs       = true;
+input bool   TradeLongs       = false;
 
 // ──────────────────────────────────────────────────────────────────
 CTrade Trade;
