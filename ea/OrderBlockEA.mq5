@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|  OrderBlockEA.mq5  —  Order Block Strategy                      |
-//|  M5 OB detection + M1 BB / EMA200 limit entry                   |
+//|  M3 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
 #property version   "1.02"
@@ -149,7 +149,7 @@ bool DailyDDBreached()
 }
 
 // ──────────────────────────────────────────────────────────────────
-// M5 OB detection — runs once per new M5 bar
+// M3 OB detection — runs once per new M3 bar
 // ──────────────────────────────────────────────────────────────────
 void ScanM3ForOBs()
 {
@@ -438,7 +438,7 @@ void DrawPanel()
         ObjectSetInteger(0, name, OBJPROP_CORNER,    CORNER_LEFT_UPPER);
         ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
         ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y + i * lh);
-        ObjectSetInteger(0, name, OBJPROP_COLOR,     i == 5 && DailyDDBreached() ? clrRed : clrBlack);
+        ObjectSetInteger(0, name, OBJPROP_COLOR,     i == 5 && DailyDDBreached() ? clrRed : clrWhite);
         ObjectSetInteger(0, name, OBJPROP_FONTSIZE,  9);
         ObjectSetString (0, name, OBJPROP_TEXT,      lines[i]);
         ObjectSetString (0, name, OBJPROP_FONT,      "Courier New");
