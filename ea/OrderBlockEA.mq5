@@ -3,12 +3,12 @@
 //|  M5 OB detection + M1 BB / EMA200 limit entry                   |
 //+------------------------------------------------------------------+
 #property copyright "Order Block EA"
-#property version   "1.01"
+#property version   "1.02"
 
 #include <Trade\Trade.mqh>
 
 // ── Strategy ──────────────────────────────────────────────────────
-input group "Order Block Detection (M5)"
+input group "Order Block Detection (M3)"
 input double DojiBodyPct      = 0.20;   // Max body/range ratio for doji candle
 input double MinImpulseBody   = 0.70;   // Min body/range ratio for impulse candle
 input double MinImpulsePct    = 0.0003; // Min impulse body as fraction of price
@@ -58,7 +58,7 @@ input bool   TradeLongs       = false;
 CTrade Trade;
 
 int    EmaHandleM1  = INVALID_HANDLE;
-int    EmaHandleM5  = INVALID_HANDLE;
+int    EmaHandleM3  = INVALID_HANDLE;
 int    BbHandleM1   = INVALID_HANDLE;
 int    AtrHandleM1  = INVALID_HANDLE;
 
@@ -75,7 +75,7 @@ struct OBZone {
 OBZone   OBZones[];
 int      OBCount = 0;
 bool     FirstScan = true;
-datetime LastM5Bar = 0;
+datetime LastM3Bar = 0;
 datetime LastDayDD = 0;
 double   DayStartBalance = 0;
 
@@ -83,11 +83,11 @@ double   DayStartBalance = 0;
 int OnInit()
 {
     EmaHandleM1 = iMA(_Symbol, PERIOD_M1, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
-    EmaHandleM5 = iMA(_Symbol, PERIOD_M5, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+    EmaHandleM3 = iMA(_Symbol, PERIOD_M3, EmaPeriod, 0, MODE_EMA, PRICE_CLOSE);
     BbHandleM1  = iBands(_Symbol, PERIOD_M1, BbPeriod, 0, BbStdDev, PRICE_CLOSE);
     AtrHandleM1 = iATR(_Symbol, PERIOD_M1, (int)AtrPeriod);
 
-    if(EmaHandleM1 == INVALID_HANDLE || EmaHandleM5 == INVALID_HANDLE ||
+    if(EmaHandleM1 == INVALID_HANDLE || EmaHandleM3 == INVALID_HANDLE ||
        BbHandleM1  == INVALID_HANDLE || AtrHandleM1  == INVALID_HANDLE)
     {
         Alert("OrderBlockEA: indicator handle creation failed");
@@ -108,7 +108,7 @@ int OnInit()
 void OnDeinit(int reason)
 {
     if(EmaHandleM1 != INVALID_HANDLE) IndicatorRelease(EmaHandleM1);
-    if(EmaHandleM5 != INVALID_HANDLE) IndicatorRelease(EmaHandleM5);
+    if(EmaHandleM3 != INVALID_HANDLE) IndicatorRelease(EmaHandleM3);
     if(BbHandleM1  != INVALID_HANDLE) IndicatorRelease(BbHandleM1);
     if(AtrHandleM1 != INVALID_HANDLE) IndicatorRelease(AtrHandleM1);
     if(ShowPanel) DeletePanel();
@@ -122,7 +122,7 @@ void OnTick()
     if(!IsSession())      return;
 
     ManageTrailingStop();
-    ScanM5ForOBs();
+    ScanM3ForOBs();
     CheckOBEntry();
 
     if(ShowPanel) DrawPanel();
@@ -151,20 +151,20 @@ bool DailyDDBreached()
 // ──────────────────────────────────────────────────────────────────
 // M5 OB detection — runs once per new M5 bar
 // ──────────────────────────────────────────────────────────────────
-void ScanM5ForOBs()
+void ScanM3ForOBs()
 {
-    datetime barTime = iTime(_Symbol, PERIOD_M5, 1);
+    datetime barTime = iTime(_Symbol, PERIOD_M3, 1);
     if(barTime == 0) return;
 
-    // On first call, initialise LastM5Bar so we process the next new bar
-    if(FirstScan) { LastM5Bar = barTime; FirstScan = false; return; }
-    if(barTime == LastM5Bar) return;
-    LastM5Bar = barTime;
+    // On first call, initialise LastM3Bar so we process the next new bar
+    if(FirstScan) { LastM3Bar = barTime; FirstScan = false; return; }
+    if(barTime == LastM3Bar) return;
+    LastM3Bar = barTime;
 
     // Require EMA to be warmed up
     double ema5[];
     ArraySetAsSeries(ema5, true);
-    if(CopyBuffer(EmaHandleM5, 0, 0, EmaPeriod + 10, ema5) < EmaPeriod + 5) return;
+    if(CopyBuffer(EmaHandleM3, 0, 0, EmaPeriod + 10, ema5) < EmaPeriod + 5) return;
 
     // Scan last 3 closed M5 bars: prev[3], doji[2], impulse[1]
     for(int i = 1; i <= 3; i++) {
@@ -172,18 +172,18 @@ void ScanM5ForOBs()
         int doji_i    = i + 1;
         int prev_i    = i + 2;
 
-        double d_o = iOpen (_Symbol, PERIOD_M5, doji_i);
-        double d_c = iClose(_Symbol, PERIOD_M5, doji_i);
-        double d_h = iHigh (_Symbol, PERIOD_M5, doji_i);
-        double d_l = iLow  (_Symbol, PERIOD_M5, doji_i);
+        double d_o = iOpen (_Symbol, PERIOD_M3, doji_i);
+        double d_c = iClose(_Symbol, PERIOD_M3, doji_i);
+        double d_h = iHigh (_Symbol, PERIOD_M3, doji_i);
+        double d_l = iLow  (_Symbol, PERIOD_M3, doji_i);
         double d_r = d_h - d_l;
         if(d_r == 0 || d_o == 0) continue;
         if(MathAbs(d_c - d_o) / d_r > DojiBodyPct) continue;
 
-        double n_o = iOpen (_Symbol, PERIOD_M5, impulse_i);
-        double n_c = iClose(_Symbol, PERIOD_M5, impulse_i);
-        double n_h = iHigh (_Symbol, PERIOD_M5, impulse_i);
-        double n_l = iLow  (_Symbol, PERIOD_M5, impulse_i);
+        double n_o = iOpen (_Symbol, PERIOD_M3, impulse_i);
+        double n_c = iClose(_Symbol, PERIOD_M3, impulse_i);
+        double n_h = iHigh (_Symbol, PERIOD_M3, impulse_i);
+        double n_l = iLow  (_Symbol, PERIOD_M3, impulse_i);
         double n_r = n_h - n_l;
         double n_b = MathAbs(n_c - n_o);
         if(n_r == 0 || n_o == 0) continue;
@@ -198,8 +198,8 @@ void ScanM5ForOBs()
         if(direction == -1 && d_c < ema_val) continue;
         if(direction ==  1 && d_c > ema_val) continue;
 
-        double p_h = iHigh(_Symbol, PERIOD_M5, prev_i);
-        double p_l = iLow (_Symbol, PERIOD_M5, prev_i);
+        double p_h = iHigh(_Symbol, PERIOD_M3, prev_i);
+        double p_l = iLow (_Symbol, PERIOD_M3, prev_i);
         if(direction == -1 && n_c >= p_l) continue;
         if(direction ==  1 && n_c <= p_h) continue;
 
@@ -208,7 +208,7 @@ void ScanM5ForOBs()
         if(ob_high == ob_low) { ob_high = d_h; ob_low = d_l; }
         if((ob_high - ob_low) < ob_high * MinOBSizePct) continue;
 
-        datetime ob_time = iTime(_Symbol, PERIOD_M5, impulse_i);
+        datetime ob_time = iTime(_Symbol, PERIOD_M3, impulse_i);
         bool dup = false;
         for(int k = 0; k < OBCount; k++) {
             if(OBZones[k].time == ob_time) { dup = true; break; }
