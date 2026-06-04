@@ -1,102 +1,56 @@
-# Price Trap EA — Forex Strategy Backtester & Expert Advisor
+# Price Trap Backtester
 
-A complete backtesting suite and live MetaTrader 5 Expert Advisor for the **Price Trap** forex strategy.
+A complete backtesting suite and MetaTrader 5 Expert Advisor for the Price Trap forex strategy — an order-block and liquidity-trap based approach targeting high-probability reversals.
 
----
+![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat&logo=python&logoColor=white)
+![MT5](https://img.shields.io/badge/MetaTrader5-007bff?style=flat)
 
 ## Strategy Logic
 
-1. **Range Detection** — Find a 20–30 pip consolidation zone on H1 (minimum 4 candles, 60% of bodies inside, both sides tested)
-2. **Breakout** — H1 candle body closes fully outside the range
-3. **Engulfing** — M15 engulfing candle forms in the breakout direction within 12 M15 bars
-4. **Entry** — Fibonacci limit order at 61.8% retracement of the engulfing candle body
-5. **Stop Loss** — 78.6% extension beyond the engulfing candle body
-6. **Take Profit 1** — 1:2 RR (half position closes here, SL moves to breakeven on remaining)
-7. **Take Profit 2** — 1:4 RR
-8. **Filters** — D1 EMA50 trend filter, session filter (07:00–21:00 UTC), news filter, weekend filter
+The Price Trap strategy identifies setups where price:
+1. Sweeps a key liquidity level (stops above/below a swing)
+2. Returns into an order block (institutional demand/supply zone)
+3. Confirms with a displacement candle
 
----
+Entry triggers on the close of the confirmation candle. Stop is placed beyond the liquidity sweep candle. Target is the next opposing liquidity level.
 
-## Backtest Results
+## Backtester Modules
 
-**Python Backtest — 2023 to 2024 — 6 pairs with D1 trend filter**
+| File                          | Purpose                                         |
+|-------------------------------|-------------------------------------------------|
+| `main.py`                     | Run full backtest                               |
+| `ob_backtester.py`            | Order block detection and backtest engine       |
+| `backtester/strategy.py`      | Signal generation and trade logic               |
+| `backtester/data.py`          | MT5 / CSV historical data loader               |
+| `backtester/report.py`        | Performance metrics (win rate, RR, drawdown)   |
+| `backtester/generate_report.py` | HTML report generation                        |
+| `export_data.py`              | Export MT5 data to CSV                         |
 
-| Metric | Result |
-|---|---|
-| Pairs tested | EURUSD, AUDCAD, AUDUSD, CADJPY, USDCAD, AUDNZD |
-| Direction | With D1 EMA50 trend filter |
-| Max drawdown | ~6R at 1% risk = 6% |
-
-**MT5 Strategy Tester — EURUSD — 2020 to 2024**
-
-| Metric | Result |
-|---|---|
-| Net Profit | +8% on $100,000 |
-| Win Rate | 75% |
-| Profit Factor | 1453 |
-| Max Drawdown | 2.94% |
-| Sharpe Ratio | 2.54 |
-| History Quality | 99% |
-
----
-
-## Recommended Pairs
-
-EURUSD · AUDCAD · AUDUSD · CADJPY · USDCAD · AUDNZD
-
----
-
-## Repository Structure
-
-```
-price-trap-backtester/
-├── ea/
-│   ├── PriceTrapEA.mq5     # MetaTrader 5 Expert Advisor
-│   └── PriceTrapEA.set     # Optimised preset file
-├── data/                   # CSV price data (H1, M15, D1 per pair)
-├── config.py               # Pairs, risk settings, date range
-├── strategy.py             # Core strategy logic
-├── data.py                 # Data loader (CSV or MT5)
-├── main.py                 # Run backtest
-├── report.py               # Console report output
-├── generate_report.py      # HTML report generator
-└── export_data.py          # Export data from MT5 on Windows VPS
-```
-
----
-
-## Python Backtester Setup
+## Setup
 
 ```bash
-pip install -r requirements.txt
+pip install MetaTrader5 pandas numpy matplotlib
+```
+
+Run backtest:
+
+```bash
 python main.py
 ```
 
-Loads CSV files from `data/` if present, otherwise pulls from MT5 directly.
+Export results:
 
----
+```bash
+python backtester/generate_report.py
+```
 
-## EA Installation (MetaTrader 5)
+## Output Metrics
 
-1. Copy `ea/PriceTrapEA.mq5` into `MT5 → MQL5 → Experts`
-2. Compile in MetaEditor (F7) — should show 0 errors
-3. Attach to a chart for each pair
-4. In the Inputs tab click **Load** and select `ea/PriceTrapEA.set`
-5. Enable **Algo Trading** in the toolbar
+- Win rate, loss rate, breakeven rate
+- Average R:R ratio
+- Max drawdown
+- Equity curve chart (HTML report)
 
-Run one chart per pair. All settings are pre-configured in the preset file.
+## License
 
----
-
-## Key EA Settings
-
-| Parameter | Default | Description |
-|---|---|---|
-| RiskPercent | 1.0 | % risk per leg (2 legs = 2% total per setup) |
-| MaxActiveSetups | 5 | Maximum concurrent setups |
-| UseTrendFilter | true | Only trade with D1 EMA50 trend |
-| UseNewsFilter | true | Block 30 min around high-impact news |
-| UseWeekendFilter | true | Close all positions before weekend |
-| SessionStartUTC | 7 | London open |
-| SessionEndUTC | 21 | NY close |
-<!-- updated: 2023-08-18 -->
+MIT
