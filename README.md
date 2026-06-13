@@ -54,4 +54,4 @@ python backtester/generate_report.py
 ## License
 
 MIT
-<!-- updated: 2026-06-12 -->
+<!-- updated: 2026-06-13 -->
